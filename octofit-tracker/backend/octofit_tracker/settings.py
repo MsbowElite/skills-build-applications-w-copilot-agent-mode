@@ -20,17 +20,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-04=@25o%d5mkm$9%k!esg-bovt)6v^a25bug+9mwaws6npxr$b'
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-04=@25o%d5mkm$9%k!esg-bovt)6v^a25bug+9mwaws6npxr$b')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
 
 
 
-import os
-
-# Permitir localhost, 127.0.0.1 e domínio do Codespace
-import os
 CODESPACE_NAME = os.environ.get('CODESPACE_NAME')
 ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 if CODESPACE_NAME:
@@ -140,10 +136,22 @@ USE_TZ = True
 STATIC_URL = 'static/'
 
 # CORS settings
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = False
+
+# Allow configuring CORS origins via environment variable for flexibility in different environments.
+# Example: DJANGO_CORS_ALLOWED_ORIGINS="http://localhost:3000,https://my-frontend.app"
+_env_cors_origins = os.environ.get('DJANGO_CORS_ALLOWED_ORIGINS')
+if _env_cors_origins:
+    CORS_ALLOWED_ORIGINS = [origin.strip() for origin in _env_cors_origins.split(',') if origin.strip()]
+else:
+    CORS_ALLOWED_ORIGINS = [
+        'http://localhost:3000',
+        'http://127.0.0.1:3000',
+    ]
+    if CODESPACE_NAME:
+        CORS_ALLOWED_ORIGINS.append(f'https://{CODESPACE_NAME}-3000.app.github.dev')
+
 CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOW_HEADERS = ['*']
-CORS_ALLOW_METHODS = ['*']
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.1/ref/settings/#default-auto-field

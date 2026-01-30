@@ -6,7 +6,11 @@ function Teams() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const apiUrl = `https://${process.env.REACT_APP_CODESPACE_NAME}-8000.app.github.dev/api/teams/`;
+    const codespaceName = process.env.REACT_APP_CODESPACE_NAME;
+    const baseUrl = codespaceName
+      ? `https://${codespaceName}-8000.app.github.dev`
+      : 'http://localhost:8000';
+    const apiUrl = `${baseUrl}/api/teams/`;
     console.log('Teams API endpoint:', apiUrl);
 
     fetch(apiUrl)

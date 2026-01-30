@@ -1,17 +1,17 @@
 from django.core.management.base import BaseCommand
-from django.contrib.auth import get_user_model
-from djongo import models
-
-from django.conf import settings
 from pymongo import MongoClient
+import os
 
 class Command(BaseCommand):
     help = 'Populate the octofit_db database with test data'
 
     def handle(self, *args, **options):
-        # Conectar ao MongoDB
-        client = MongoClient('localhost', 27017)
-        db = client['octofit_db']
+        # Conectar ao MongoDB usando variáveis de ambiente
+        mongo_host = os.environ.get('MONGODB_HOST', 'localhost')
+        mongo_port = int(os.environ.get('MONGODB_PORT', '27017'))
+        mongo_db_name = os.environ.get('MONGODB_DB_NAME', 'octofit_db')
+        client = MongoClient(mongo_host, mongo_port)
+        db = client[mongo_db_name]
 
         # Limpar coleções
         db.users.delete_many({})
@@ -20,9 +20,22 @@ class Command(BaseCommand):
         db.leaderboard.delete_many({})
         db.workouts.delete_many({})
 
-        # Criar times
-        marvel = {'name': 'Team Marvel'}
-        dc = {'name': 'Team DC'}
+        # Criar times com todos os campos esperados pelo frontend
+        from datetime import datetime
+        marvel = {
+            'name': 'Team Marvel',
+            'description': 'Earth\'s Mightiest Heroes team dedicated to protecting the world',
+            'captain': 'Tony Stark',
+            'members_count': 2,
+            'created_at': '2024-01-01T00:00:00Z'
+        }
+        dc = {
+            'name': 'Team DC',
+            'description': 'Justice League defenders fighting for truth and justice',
+            'captain': 'Bruce Wayne',
+            'members_count': 2,
+            'created_at': '2024-01-01T00:00:00Z'
+        }
         marvel_id = db.teams.insert_one(marvel).inserted_id
         dc_id = db.teams.insert_one(dc).inserted_id
 
@@ -38,30 +51,126 @@ class Command(BaseCommand):
         # Criar índice único para email
         db.users.create_index([('email', 1)], unique=True)
 
-        # Criar atividades
+        # Criar atividades com todos os campos esperados pelo frontend
         activities = [
-            {'user_email': 'tony@marvel.com', 'activity': 'Running', 'duration': 30},
-            {'user_email': 'steve@marvel.com', 'activity': 'Cycling', 'duration': 45},
-            {'user_email': 'bruce@dc.com', 'activity': 'Swimming', 'duration': 60},
-            {'user_email': 'clark@dc.com', 'activity': 'Flying', 'duration': 120},
+            {
+                'id': 1,
+                'user_email': 'tony@marvel.com',
+                'user': 'Tony Stark',
+                'activity': 'Running',
+                'activity_type': 'Running',
+                'duration': 30,
+                'distance': 5,
+                'calories': 300,
+                'date': '2024-01-01T09:00:00Z',
+            },
+            {
+                'id': 2,
+                'user_email': 'steve@marvel.com',
+                'user': 'Steve Rogers',
+                'activity': 'Cycling',
+                'activity_type': 'Cycling',
+                'duration': 45,
+                'distance': 15,
+                'calories': 400,
+                'date': '2024-01-02T09:00:00Z',
+            },
+            {
+                'id': 3,
+                'user_email': 'bruce@dc.com',
+                'user': 'Bruce Wayne',
+                'activity': 'Swimming',
+                'activity_type': 'Swimming',
+                'duration': 60,
+                'distance': 2,
+                'calories': 500,
+                'date': '2024-01-03T09:00:00Z',
+            },
+            {
+                'id': 4,
+                'user_email': 'clark@dc.com',
+                'user': 'Clark Kent',
+                'activity': 'Flying',
+                'activity_type': 'Flying',
+                'duration': 120,
+                'distance': 50,
+                'calories': 800,
+                'date': '2024-01-04T09:00:00Z',
+            },
         ]
         db.activities.insert_many(activities)
 
-        # Criar leaderboard
-        leaderboard = [
-            {'user_email': 'tony@marvel.com', 'points': 100},
-            {'user_email': 'steve@marvel.com', 'points': 90},
-            {'user_email': 'bruce@dc.com', 'points': 110},
-            {'user_email': 'clark@dc.com', 'points': 120},
+        # Criar leaderboard com todos os campos esperados pelo frontend
+        # Mapeia pontos por email para construir o schema esperado
+        users_data = [
+            {'email': 'tony@marvel.com', 'name': 'Tony Stark', 'team': 'Team Marvel', 'points': 100},
+            {'email': 'steve@marvel.com', 'name': 'Steve Rogers', 'team': 'Team Marvel', 'points': 90},
+            {'email': 'bruce@dc.com', 'name': 'Bruce Wayne', 'team': 'Team DC', 'points': 110},
+            {'email': 'clark@dc.com', 'name': 'Clark Kent', 'team': 'Team DC', 'points': 120},
         ]
+
+        leaderboard = []
+        for idx, user_data in enumerate(users_data, start=1):
+            email = user_data['email']
+            # Contar quantas atividades o usuário possui
+            activities_count = db.activities.count_documents({'user_email': email})
+
+            leaderboard.append({
+                'id': idx,
+                'user': user_data['name'],
+                'team': user_data['team'],
+                'total_points': user_data['points'],
+                'activities_count': activities_count,
+            })
+        
         db.leaderboard.insert_many(leaderboard)
 
-        # Criar sugestões de treino
+        # Criar sugestões de treino / workouts com o schema esperado pelo frontend
         workouts = [
-            {'user_email': 'tony@marvel.com', 'suggestion': '5km run'},
-            {'user_email': 'steve@marvel.com', 'suggestion': '10km bike'},
-            {'user_email': 'bruce@dc.com', 'suggestion': '1km swim'},
-            {'user_email': 'clark@dc.com', 'suggestion': 'fly 10 laps'},
+            {
+                'id': 1,
+                'user_email': 'tony@marvel.com',
+                'suggestion': '5km run',
+                'name': '5km Run',
+                'description': 'Corrida de 5km em ritmo confortável para melhorar a resistência.',
+                'workout_type': 'Cardio',
+                'duration': 30,  # minutos
+                'difficulty_level': 'Intermediate',
+                'calories_burned': 300,
+            },
+            {
+                'id': 2,
+                'user_email': 'steve@marvel.com',
+                'suggestion': '10km bike',
+                'name': '10km Bike',
+                'description': 'Pedalada de 10km em ritmo moderado para fortalecer pernas e cardio.',
+                'workout_type': 'Cardio',
+                'duration': 40,  # minutos
+                'difficulty_level': 'Intermediate',
+                'calories_burned': 400,
+            },
+            {
+                'id': 3,
+                'user_email': 'bruce@dc.com',
+                'suggestion': '1km swim',
+                'name': '1km Swim',
+                'description': 'Nado de 1km focado em técnica e resistência muscular.',
+                'workout_type': 'Cardio',
+                'duration': 30,  # minutos
+                'difficulty_level': 'Advanced',
+                'calories_burned': 350,
+            },
+            {
+                'id': 4,
+                'user_email': 'clark@dc.com',
+                'suggestion': 'fly 10 laps',
+                'name': '10 Laps Flight',
+                'description': '10 voltas de voo em alta velocidade para super-heróis kryptonianos.',
+                'workout_type': 'Cardio',
+                'duration': 20,  # minutos
+                'difficulty_level': 'Expert',
+                'calories_burned': 500,
+            },
         ]
         db.workouts.insert_many(workouts)
 
