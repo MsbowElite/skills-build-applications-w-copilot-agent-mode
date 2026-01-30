@@ -65,17 +65,15 @@ function Users() {
             <thead>
               <tr>
                 <th scope="col">#</th>
-                <th scope="col">Username</th>
+                <th scope="col">Name</th>
                 <th scope="col">Email</th>
-                <th scope="col">Full Name</th>
-                <th scope="col">Team</th>
-                <th scope="col" className="text-end">Points</th>
+                <th scope="col">Team ID</th>
               </tr>
             </thead>
             <tbody>
               {users.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="text-center empty-state">
+                  <td colSpan="4" className="text-center empty-state">
                     <div className="py-4">
                       <p className="mb-0">👥 No users found</p>
                       <small className="text-muted">Register to start your fitness journey!</small>
@@ -83,31 +81,20 @@ function Users() {
                   </td>
                 </tr>
               ) : (
-                users.map(user => (
-                  <tr key={user.id}>
-                    <td className="fw-bold">{user.id}</td>
+                users.map((user, index) => (
+                  <tr key={user._id}>
+                    <td className="fw-bold">{index + 1}</td>
                     <td>
-                      <span className="badge bg-primary">{user.username}</span>
+                      <span className="badge bg-primary">{user.name}</span>
                     </td>
                     <td>
                       <small className="text-muted">{user.email}</small>
                     </td>
                     <td>
-                      {user.first_name || user.last_name ? 
-                        `${user.first_name || ''} ${user.last_name || ''}`.trim() : 
-                        <span className="text-muted">N/A</span>
-                      }
-                    </td>
-                    <td>
-                      {user.team ? 
-                        <span className="badge bg-secondary">{user.team}</span> : 
+                      {user.team_id ? 
+                        <span className="badge bg-secondary">{user.team_id}</span> : 
                         <span className="text-muted">No Team</span>
                       }
-                    </td>
-                    <td className="text-end">
-                      <span className="badge bg-success fs-6">
-                        {user.total_points || 0} pts
-                      </span>
                     </td>
                   </tr>
                 ))
