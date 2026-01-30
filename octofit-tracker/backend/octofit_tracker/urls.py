@@ -14,9 +14,48 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
+
 from django.urls import path, include
 from django.http import JsonResponse
 import os
+from rest_framework import routers, serializers, viewsets
+from django.apps import apps
+
+# Serializers e ViewSets dinâmicos para cada coleção
+client = None
+try:
+    from pymongo import MongoClient
+    client = MongoClient('localhost', 27017)
+    db = client['octofit_db']
+except Exception:
+    db = None
+
+from bson import ObjectId
+def convert_objectid(obj):
+    if isinstance(obj, ObjectId):
+        return str(obj)
+    if isinstance(obj, dict):
+        return {k: convert_objectid(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [convert_objectid(i) for i in obj]
+    return obj
+
+def build_viewset(collection):
+    class GenericSerializer(serializers.Serializer):
+        def to_representation(self, instance):
+            return instance
+
+    class GenericViewSet(viewsets.ViewSet):
+        serializer_class = GenericSerializer
+        def list(self, request):
+            items = list(db[collection].find({})) if db else []
+            items = convert_objectid(items)
+            return JsonResponse(items, safe=False)
+    return GenericViewSet
+
+router = routers.DefaultRouter()
+for comp in ['users', 'activities', 'teams', 'leaderboard', 'workouts']:
+    router.register(comp, build_viewset(comp), basename=comp)
 
 def api_root(request):
     codespace_name = os.environ.get('CODESPACE_NAME', 'localhost')
@@ -35,9 +74,5 @@ def api_root(request):
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', api_root),
-    # path('api/activities/', ...),
-    # path('api/users/', ...),
-    # path('api/teams/', ...),
-    # path('api/leaderboard/', ...),
-    # path('api/workouts/', ...),
+    path('api/', include(router.urls)),
 ]
